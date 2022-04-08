@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 {
     FILE *fp;
     char dummy[BUF_SIZE*5]; memset(dummy, 0, BUF_SIZE*5);
-    fp = fopen('evil_file', "r");
+    fp = fopen("evil_file", "r");
     readFile(fp);
     printf("Returned Properly\n");
     fclose(fp);

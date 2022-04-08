@@ -27,6 +27,9 @@ class Gadget_finder:
         else :
             bin_section = self.filebinary
         temp_str = ''
+        for i in md.disasm(bin_section, 0x0):
+            # print("0x%x: %s %s;" %(i.address, i.mnemonic, i.op_str))
+            temp_str += "0x%x: %s %s;" %(i.address, i.mnemonic, i.op_str)
         
         # print(temp_str)
         

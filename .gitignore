@@ -1,4 +1,5 @@
-test/gadget_finder.py
+test/*
+!test/vuln*.c
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -9,6 +10,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+
 .Python
 build/
 develop-eggs/

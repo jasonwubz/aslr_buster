@@ -5,7 +5,7 @@
 
 // Set BUF_SIZE as described in the lab document.
 #ifndef BUF_SIZE
-#define BUF_SIZE 104
+#define BUF_SIZE 106
 #endif
 
 int bof(char *str)

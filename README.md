@@ -13,14 +13,27 @@ $ sudo sysctl -w kernel.randomize_va_space=2
 - click: [Link](https://pypi.org/project/click/)
 - capstone: [Link](https://www.capstone-engine.org/documentation.html)
 
-## Compile Sample Vulnerable Program
-To compile the vulnerable program, run:
+## ASLR BYPASS
+
+### 1. Compile Sample Vulnerable Program
+To compile the vulnerable program, navigate to test directory:
+
+~~~
+$ cd test
+~~~
+
+Then, comiple the vulnerablt files:
 
 ~~~
 $ gcc -m32 -o prog -z noexecstack -fno-stack-protector -no-pie prog.c
 ~~~
 
-Replace prog with the test C file
+### 3. Bypass:
+~~~
+$ python3 ../alsr_buster.py
+~~~
+
+Follow the guide and get a shell
 
 ## Important Notes:
 Run this in a folder that contains only the vulnerable program.

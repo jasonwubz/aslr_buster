@@ -52,5 +52,4 @@ address of a string
 ## 2nd payload:
 system_address\
 exit_address\
-gadget: pop e?x; ret;\
 address of /bin/sh

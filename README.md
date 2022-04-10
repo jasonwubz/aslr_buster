@@ -3,7 +3,7 @@ ASLR is used by the Linux Kernel to randomize memory space which makes the attac
 
 The ASLR Buster tool will bypass the ASLR protection and exploit Buffer Overflow Vulnerability in the 32 bit Linux system.
 
-## IMPORTANCE
+## Importance
 Creating a buffer overflow attack is usually a manual process. The importance of having a tool that can automate some of these tasks saves time. This automated tool interests us because we found it tedious to try to use various commands and search tools inside other programs to build our payload.
 
 ## Prerequisite
@@ -29,7 +29,7 @@ $ cd test
 Then, comiple the vulnerablt files:
 
 ~~~
-$ $ gcc -m32 -o prog -z noexecstack -fno-stack-protector -no-pie prog.c
+$ gcc -m32 -o prog -z noexecstack -fno-stack-protector -no-pie prog.c
 ~~~
 
 ### 2. Start the program

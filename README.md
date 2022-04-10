@@ -20,22 +20,24 @@ To compile the vulnerable program, run:
 $ gcc -m32 -o prog -z noexecstack -fno-stack-protector -no-pie prog.c
 ~~~
 
+Replace prog with the test C file
+
 ## Important Notes:
 Run this in a folder that contains only the vulnerable program.
 
 
 ## 1st payload:
-address of puts@plt
-gadget: pop e?x; ret;
-address of a string
-address of puts@plt
-gadget: pop e?x; ret;
-address of puts@got
-address of _start
+address of puts@plt\
+gadget: pop e?x; ret;\
+address of a string\
+address of puts@plt\
+gadget: pop e?x; ret;\
+address of puts@got\
+address of _start\
 address of a string
 
 ## 2nd payload:
-system_address
-exit_address
-gadget: pop e?x; ret;
+system_address\
+exit_address\
+gadget: pop e?x; ret;\
 address of /bin/sh

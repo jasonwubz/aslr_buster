@@ -13,7 +13,7 @@ $ sudo sysctl -w kernel.randomize_va_space=2
 - click: [Link](https://pypi.org/project/click/)
 - capstone: [Link](https://www.capstone-engine.org/documentation.html)
 
-## ASLR BYPASS
+## ASLR Bypass
 
 ### 1. Compile Vulnerable Program
 To compile the vulnerable program, navigate to test directory:

@@ -25,10 +25,14 @@ $ sysctl -a --pattern randomize_va_space
 
 ### 3. Install Dependencies:
 - click: [Link](https://pypi.org/project/click/)
+~~~
 pip3 install click
+~~~
 
 - capstone: [Link](https://www.capstone-engine.org/documentation.html)
-pip3 install click
+~~~
+pip3 install capstone
+~~~
 
 ## ASLR Bypass
 

@@ -9,7 +9,7 @@ from os import path
 from gadget_finder import Gadget_finder
 import subprocess
 from generate_random_payload import Fifo_handler
-from pwn import process
+from processer import Processer
 import click
 
 # def output_reader(proc):
@@ -268,7 +268,9 @@ print("")
 print("Starting exploit")
 print("---------------------------------------------")
 
-proc = process([f'./{program_name}', start_payload_name])
+proc = Processer(program_name)
+proc.process(start_payload_name)
+#proc = process([f'./{program_name}', start_payload_name], raw=True)
 
 phandle = open(f"./{start_payload_name}",'wb',0)
 phandle.write(evil.get_payload())

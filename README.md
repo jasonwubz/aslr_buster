@@ -9,13 +9,13 @@ This is a tool for bypassing ASLR protection in buffer overflow for 32 bit Linux
 $ sudo sysctl -w kernel.randomize_va_space=2
 ~~~
 
-### 2. Install Dependencies:
+### 2. Install Dependencies
 - click: [Link](https://pypi.org/project/click/)
 - capstone: [Link](https://www.capstone-engine.org/documentation.html)
 
 ## ASLR BYPASS
 
-### 1. Compile Sample Vulnerable Program
+### 1. Compile Vulnerable Program
 To compile the vulnerable program, navigate to test directory:
 
 ~~~
@@ -28,7 +28,7 @@ Then, comiple the vulnerablt files:
 $ gcc -m32 -o prog -z noexecstack -fno-stack-protector -no-pie prog.c
 ~~~
 
-### 3. Bypass:
+### 2. Start the Program
 
 To start the program, run:
 

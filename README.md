@@ -41,6 +41,13 @@ Then, compile the vulnerable files:
 $ gcc -m32 -z noexecstack -fno-stack-protector -no-pie -o vuln_01 vuln_01.c
 ~~~
 
+Note: this requires libc  32 bit version:
+
+~~~
+sudo apt-get update
+sudo apt-get install gcc-multilib
+~~~
+
 Run the following to verify that libc address is always different:
 
 ~~~

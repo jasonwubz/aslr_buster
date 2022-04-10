@@ -8,36 +8,51 @@ Creating a buffer overflow attack is usually a manual process. The importance of
 
 ## Prerequisite
 
-### 1. Enable ASLR
+### 1. Python Version
+Our tool requires python3 version 3.6.9 or greater.
+
+### 2. Enable ASLR
 
 ~~~
 $ sudo sysctl -w kernel.randomize_va_space=2
 ~~~
 
-### 2. Install Dependencies:
+Run the following to verify ASLR is enabled
+
+~~~
+$ sysctl -a --pattern randomize_va_space
+~~~
+
+### 3. Install Dependencies:
 - click: [Link](https://pypi.org/project/click/)
 - capstone: [Link](https://www.capstone-engine.org/documentation.html)
 
 ## ASLR Bypass
 
-### 1. Compile Vulnerable Program
+### 1. Compile Vulnerable Programs
 
 ~~~
 $ cd test
 ~~~
 
-Then, comiple the vulnerablt files:
+Then, compile the vulnerable files:
 
 ~~~
-$ gcc -m32 -o prog -z noexecstack -fno-stack-protector -no-pie prog.c
+$ gcc -m32 -z noexecstack -fno-stack-protector -no-pie -o vuln_01 vuln_01.c
 ~~~
 
-### 2. Start the program
+Run the following to verify that libc address is always different:
+
+~~~
+ldd vuln_01 | grep libc
+~~~
+
+### 2. Start the Script
 
 To start the program, run:
 
 ~~~
-$ python3 ../alsr_buster.py
+$ python3 ../aslr_buster.py
 ~~~
 
 Follow the guide and get a shell
@@ -46,11 +61,15 @@ Follow the guide and get a shell
 ## Important Notes:
 Run this in a folder that contains only the vulnerable program.
 
-## ASLR Buster Script
+## How the ASLR Buster Script Works
 
 This script is the main script that is responsible for exploiting the buffer overflow vulnerability in a vulnerable C program.
 
-We have imported various libraries and other scripts like payload generator, bin handler, seg fault finder etc., to achieve our objective.
+We have imported various libraries and other scripts like payload generator, bin handler, seg fault finder etc., to achieve our objective. The only third party libraries are the click and capstone modules.
+
+Click is a module used for handling user prompts.
+
+The capstone module is used to disassemble the bytes of the binary. We use capstone to disassemble only sections of the binary that has the executable flag as we have non-executable stack enabled. We use readelf -S binary_file to obtain the section information. The capstone will output the assembly code equivalent of the bytes we input where we can then use regex to match the output strings for the gadgets that interest us.
 
 The script starts off with prompting the user/attacker to enter the vulnerable c program name whose buffer overflow vulnerability is to be exploited. A user can then choose the probe method for the exploit. We have included 4 probe methods to perform the attack which are default probing, probing with payload as an argument, filename, and argument and filename together. The script also enables the user to enter the maximum payload size to be used for exploitation.
 
@@ -60,7 +79,9 @@ By using the bin handler script, our main script then starts to exploit the prog
 
 We are now interested in finding the bin/sh address which will allow a user to access the victim machine’s interactive shell. In order to achieve this, we try to obtain the readonlydata (rodata) sections of the program and make use of bin handler file to get the start and end addresses of the rodata which will eventually give us the offset of bin/sh string.
 
-We now create our first payload using a payload handler (evil_payload_handler) which calls printf@plt our puts@plt and takes in maximum payload size and segfault offset found in above steps. This handler will make payload print random string, then print got address and pop the gadgets found in the vulnerable program. We then continue to add more content to the handler to be placed at the start of the program. Once the payload is created and ready to start the buffer overflow exploit, the attacker is prompted to begin the exploit. After the payload gets written, the exploit reads output of the payload in recv_str. 
+For the exploit to work, we will create a FIFO pipe where we can send the payload. The idea of the pipe is to substitute the file that the vulnerable program performs its fread. The pipe is an important part of the exploit because it can block the flow of the program until a payload is written to it. This gives our script the time and opportunity to introduce two separate payloads.
+
+We now create our first payload using a payload handler (evil_payload_handler) which calls printf@plt or puts@plt and takes in maximum payload size and segfault offset found in above steps. This handler will make payload print random string, then print got address and pop the gadgets found in the vulnerable program. We then continue to add more content to the handler to redirect the flow to the start of the program. Once the payload is created and ready to start the buffer overflow exploit, the attacker is prompted to begin the exploit. After the payload gets written, the exploit reads output of the payload in recv_str. 
 
 ### 1st payload:
 address of puts@plt\
@@ -72,7 +93,7 @@ address of puts@got\
 address of _start\
 address of a string
 
-The script now continues to build second stage of exploit wherein if the printf statement is found in the vulnerable program, it will print the recvdata as a full leak and length of the string used in the payload. The script gives the leaked addresses of the prints and puts functions from the vulnerable program. The script now continues to calculate the libc base addresses in the form of printf address offset, put address offset, system address offset, binsh offset and exit address offset. We add these obtained addresses to the second payload which is written to the pipe. After the second payload is executed, an attacker successfully obtains the interactive shell of the victim’s machine.
+The script now continues to build second stage of exploit wherein if the printf or puts statement is found in the vulnerable program, it will print the recvdata as a full leak and length of the string used in the payload. The script gives the leaked addresses of the prints and puts functions from the vulnerable program. The script now continues to calculate the libc base addresses in the form of printf address offset, put address offset, system address offset, binsh offset and exit address offset. We add these obtained addresses to the second payload which is written to the pipe. After the second payload is executed, an attacker successfully obtains the interactive shell of the victim’s machine.
 
 ### 2nd payload:
 system_address\
@@ -81,5 +102,3 @@ address of /bin/sh
 
 ## References:
 https://www.fortinet.com/blog/threat-research/tutorial-arm-stack-overflow-exploit-against-setuid-root-program
-
-

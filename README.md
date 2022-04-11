@@ -34,6 +34,12 @@ pip3 install click
 pip3 install capstone
 ~~~
 
+OR use the makefile:
+
+~~~
+$ make setup
+~~~
+
 ## ASLR Bypass
 
 ### 1. Compile Vulnerable Programs
@@ -113,6 +119,59 @@ The script now continues to build second stage of exploit wherein if the printf 
 system_address\
 exit_address\
 address of /bin/sh
+
+## Test Cases
+
+We have three vulnerable c programs. In all three programs, we are able to exploit them and obtain the shell. Below are the details: 
+
+### vuln_01.c
+This program reads file with the name "benign_payload" and the vulnerability is in the strcpy function where it tries to copy more bytes than the buffer size. The printf is called before the fread.
+
+Inputs needed: name of file and value of maximum payload size
+
+### vuln_02.c
+This program reads a file of any name provided as an argument. The vulnerability is in the fread function where it tries to read more bytes than the buffer size.
+
+Inputs needed: name of file and value of maximum payload size
+
+### vuln_03.c
+This program is similar to vuln_02.c except the file it opens is fixed with the name evil_file. No printf function is called prior to the execution of fread.
+
+Inputs needed: name of file and value of maximum payload size
+
+### Sample of Expected Output
+Below is a sample of the successful exploitation. All three exploits will produce a similar shell. The libc address will always be different due to ASLR.
+
+~~~
+Starting exploit
+---------------------------------------------
+First payload is written
+Reading outputs from until the following bytes are received: b'benign_payload\n'
+Receive from program with first payload: b'benign_payload\n'
+Full leak b'\x90\x92\xd8\xf7\xf0m\xd3\xf7 w\xd8\xf70q\xe6\xf7\n'
+Leaked address of puts: 0xf7d89290
+
+[Demo pause] Press any key to continue calculating libc address [Y/n]:
+
+Calculated libc address: 0xf7d18000
+Function system address: 0xf7d5d420
+String /bin/sh address: 0xf7ea7352
+Function exit address: 0xf7d4ff80
+
+[Demo pause] Press any key to get interactive shell [Y/n]:
+
+whoami
+johndoe
+~~~
+
+## Challenges
+We had certain challenges faced when dealing with the development and there were some behaviors that we could not automate:
+
+- We could not automate the calculation of the payload size. The user must provide this information. We do not have a way to know the maximum bytes required in the fread parameter.
+
+- Our options of finding gadgets is limited to only the executable bytes of the binary file as the address we need must be static.
+
+- We at some point relied on the process module of pwntools to handle the interaction as a subprocess. However, we found the technique used to make this possible using python's native subprocess module along with using pty as the stdout to capture buffers as the become immediately available. Furthermore, importing pwntools caused the click module to behave strangely.
 
 ## References:
 https://www.fortinet.com/blog/threat-research/tutorial-arm-stack-overflow-exploit-against-setuid-root-program

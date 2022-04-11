@@ -147,6 +147,7 @@ if has_null_bytes(sstart_address):
     sstart_address_int = int(sstart_address, 16)
     sstart_address_int = sstart_address_int + 4
     sstart_address = hex(sstart_address_int)[2:]
+    print("Found address of _start[UPDATED]", sstart_address)
 
 print("")
 click.confirm('[Demo pause] Press any key to continue', default="y")

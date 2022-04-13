@@ -173,5 +173,9 @@ We had certain challenges faced when dealing with the development and there were
 
 - We at some point relied on the process module of pwntools to handle the interaction as a subprocess. However, we found the technique used to make this possible using python's native subprocess module along with using pty as the stdout to capture buffers as the become immediately available. Furthermore, importing pwntools caused the click module to behave strangely.
 
+## Bugs & Known Issues
+
+Please see [issues](https://github.com/jasonwubz/aslr_buster/issues)
+
 ## References:
 https://www.fortinet.com/blog/threat-research/tutorial-arm-stack-overflow-exploit-against-setuid-root-program

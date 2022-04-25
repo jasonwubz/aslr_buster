@@ -1,18 +1,15 @@
-import sys
 import subprocess
 import re
 
-from string_handler import search_string_in_file
 
 class Bin_handler:
-
     """This class is for handling binary files
 
-    The main idea is to use existing commands such as ldd, readelf to produce output
-    of the binary and the regex is used to extract these information
+    The main idea is to use existing commands such as ldd,
+    readelf to produce output of the binary and the regex
+    is used to extract these information
     """
 
-    # initialize
     def __init__(self, filename):
         self.filename = filename
         self.libc_exists = False
@@ -20,10 +17,12 @@ class Bin_handler:
 
     # check if the bin has libc linked to it
     def has_libc(self):
-        ldd_output = subprocess.check_output(f'ldd {self.filename}', shell=True)
+        ldd_output = subprocess.check_output(f'ldd {self.filename}',
+                                             shell=True)
 
         # use regex to find if libc is used
-        regex = r"(libc[a-zA-Z0-9-.]+)\s=\>\s([a-zA-Z0-9-.\/]*libc[a-zA-Z0-9-.]+)\s(\(0x[0-9a-fA-F]{8,16}\))?"
+        regex = r"(libc[a-zA-Z0-9-.]+)\s=\>\s([a-zA-Z0-9-.\/]" + \
+                r"*libc[a-zA-Z0-9-.]+)\s(\(0x[0-9a-fA-F]{8,16}\))?"
         matches = re.finditer(regex, str(ldd_output), re.MULTILINE)
         for matchNum, match in enumerate(matches, start=1):
             self.libc_path = match.group(2)
@@ -31,10 +30,12 @@ class Bin_handler:
         return self.libc_exists
 
     def search_function(self, filename, function_name):
-        command_str = f"readelf -s {filename} | grep {function_name}"
+        command_str = f"readelf -s -W {filename} | grep {function_name}"
         output = subprocess.check_output(command_str, shell=True)
-        
-        regex = "\d*:\s([0-9a-fA-F]{8,16})\s*\d*\s\w*\s*\w*\s*\w*\s*\d*\s"+function_name+"\@"
+
+        regex = r"\d*:\s([0-9a-fA-F]{8,16})\s*\d*\s\w*\s*\w*\s*\w*\s*\d*\s" + \
+                function_name + \
+                r"\@"
         matches = re.finditer(regex, str(output), re.MULTILINE)
         found_address = ''
         found = False
@@ -45,10 +46,11 @@ class Bin_handler:
         return found, found_address
 
     def search_asm_function(self, filename, function_name):
-        command_str = f"readelf -s {filename} | grep {function_name}"
+        command_str = f"readelf -s -W {filename} | grep {function_name}"
         output = subprocess.check_output(command_str, shell=True)
-        
-        regex = "\d*:\s([0-9a-fA-F]{8,16})\s*\d*\s\w*\s*\w*\s*\w*\s*\d*\s"+function_name
+
+        regex = r"\d*:\s([0-9a-fA-F]{8,16})\s*\d*\s\w*\s*\w*\s*\w*\s*\d*\s" + \
+                function_name
         matches = re.finditer(regex, str(output), re.MULTILINE)
         found_address = ''
         found = False
@@ -61,8 +63,10 @@ class Bin_handler:
     def search_plt_function(self, filename, function_name):
         command_str = f"objdump -d {filename}"
         output = subprocess.check_output(command_str, shell=True)
-        
-        regex = "([a-fA-F0-9]{8,16})\s<"+function_name+"@plt>"
+
+        regex = r"([a-fA-F0-9]{8,16})\s<" + \
+                function_name + \
+                r"@plt>"
         matches = re.finditer(regex, str(output), re.MULTILINE)
         found_address = ''
         found = False
@@ -72,12 +76,19 @@ class Bin_handler:
             break
         return found, found_address
 
-    def search_plt_and_got_function(self, filename, function_name):
+    def search_plt_got(self, filename, function_name):
+        """Searches for got in the binary
+        """
         command_str = f"objdump -d {filename}"
         output = subprocess.check_output(command_str, shell=True)
-        
-        regex = "([a-fA-F0-9]{8,16})\s<"+function_name+"@plt>:(\s.*?)jmp\s*\*0x([a-fA-F0-9]{7,16})"        
-        matches = re.finditer(regex, str(output).replace('\\n', ' '), re.MULTILINE)
+
+        regex = r"([a-fA-F0-9]{8,16})\s<" + \
+                function_name + \
+                r"@plt>:(\s.*?)jmp\s*\*0x([a-fA-F0-9]{7,16})"
+
+        matches = re.finditer(regex,
+                              str(output).replace('\\n', ' '),
+                              re.MULTILINE)
         found_address = ''
         found_got_address = ''
         found = False
@@ -88,12 +99,15 @@ class Bin_handler:
             break
         return found, found_address, found_got_address
 
-    def get_executable_sections(self, filename):
+    def get_ax_sections(self, filename):
+        """Searches the binary file for AX sections (executable sections)
+        """
         sections = {}
 
-        command_str = f"readelf -S {filename}"
+        command_str = f"readelf -S -W {filename}"
         output = subprocess.check_output(command_str, shell=True)
-        regex = r"(\.[\w\-_.]+)\s+\w+\s+([a-f0-9A-F]{8,16})\s([a-f0-9A-F]+)\s([a-f0-9A-F]+)\s\d+\s+(\w?X\w?)"
+        regex = r"(\.[\w\-_.]+)\s+\w+\s+([a-f0-9A-F]{8,16})" \
+                r"\s([a-f0-9A-F]+)\s([a-f0-9A-F]+)\s\d+\s+(\w?X\w?)"
         matches = re.finditer(regex, str(output), re.MULTILINE)
 
         for matchNum, match in enumerate(matches, start=1):
@@ -105,12 +119,13 @@ class Bin_handler:
         return sections
 
     def search_binary_section(self, filename, section_name):
-        command_str = f"readelf -S {filename}"
+        command_str = f"readelf -S -W {filename}"
         output = subprocess.check_output(command_str, shell=True)
-        
-        regex = r"(\.[\w\-_.]+)\s+\w+\s+([a-f0-9A-F]{8,16})\s([a-f0-9A-F]+)\s([a-f0-9A-F]+)"
+
+        regex = r"(\.[\w\-_.]+)\s+\w+\s+([a-f0-9A-F]{8,16})" + \
+                r"\s([a-f0-9A-F]+)\s([a-f0-9A-F]+)"
         matches = re.finditer(regex, str(output), re.MULTILINE)
-        
+
         found = False
         found_address = ''
         found_offset = ''

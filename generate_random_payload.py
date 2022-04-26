@@ -41,7 +41,7 @@ class Fifo_handler:
         self.fhandle.close()
 
 
-class Generic_payload_file_handler:
+class Generic_payload_handler:
     def __init__(self,
                  payload,
                  target_program,

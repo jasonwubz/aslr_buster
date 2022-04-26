@@ -23,7 +23,7 @@ class Bin_handler:
                                              shell=True)
 
         # use regex to find if libc is used
-        regex = r"(libc[a-zA-Z0-9-.]+)\s=\>\s([a-zA-Z0-9-.\/]" + \
+        regex = r"(libc[a-zA-Z0-9-.]+)\s=\>\s([a-zA-Z0-9-_.\/]" + \
                 r"*libc[a-zA-Z0-9-.]+)\s(\(0x[0-9a-fA-F]{8,16}\))?"
         matches = re.finditer(regex, str(ldd_output), re.MULTILINE)
         for matchNum, match in enumerate(matches, start=1):
@@ -78,15 +78,23 @@ class Bin_handler:
             break
         return found, found_address
 
-    def search_plt_got(self, filename, function_name):
+    def search_plt_got(self, filename, function_name, arch=32):
         """Searches for got in the binary
         """
         command_str = f"objdump -d {filename}"
         output = subprocess.check_output(command_str, shell=True)
 
-        regex = r"([a-fA-F0-9]{8,16})\s<" + \
-                function_name + \
-                r"@plt>:(\s.*?)jmp\s*\*0x([a-fA-F0-9]{7,16})"
+        regex = None
+
+        if arch == 32:
+            regex = r"([a-fA-F0-9]{8,16})\s<" + \
+                    function_name + \
+                    r"@plt>:(\s.*?)jmp\s*\*0x([a-fA-F0-9]{7,16})"
+        else:
+            regex = r"([a-fA-F0-9]{8,16})\s<" + \
+                    function_name + \
+                    r"@plt>:(\s.*?)jmpq\s*\*0x[a-fA-F0-9]{4,16}" + \
+                    r"\(%rip\)\s+#\s([a-fA-F0-9]{4,16})"
 
         matches = re.finditer(regex,
                               str(output).replace('\\n', ' '),
@@ -128,7 +136,7 @@ class Bin_handler:
 
         return sections
 
-    def search_binary_section(self, filename, section_name):
+    def search_section(self, filename, section_name):
         command_str = f"readelf -S -W {filename}"
         output = subprocess.check_output(command_str, shell=True)
 
@@ -231,6 +239,17 @@ def search_string(filename,
 
 
 def get_filename_strings(filename, start_offset=0, end_offset=0, minlen=4):
+    """Find strings that can be used as filenames.
+    The returned result is a dictionary where the
+    index is the address offset and the value is the
+    string.
+
+    Sample:
+    results = {
+        123: "I'm a string",
+        400: "hello"
+    }
+    """
     results = {}
     try:
         filename_regex = re.compile('^[\\w\\-. ]+$')

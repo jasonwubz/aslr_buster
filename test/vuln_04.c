@@ -6,10 +6,15 @@
 #define BUF_SIZE 108
 #endif
 
+void unused()
+{
+    asm("pop %rbx; retq;");
+}
+
 int readFile(FILE *fp)
 {
     char buffer[BUF_SIZE];
-    printf("buffer is at:%p\r\n",buffer);
+    printf("buffer is at:%p\n",buffer);
     fread(buffer, sizeof(char), 300, fp);
     return 1;
 }

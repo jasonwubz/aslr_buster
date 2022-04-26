@@ -130,14 +130,15 @@ This program reads file with the name "benign_payload" and the vulnerability is 
 Inputs needed: name of file and value of maximum payload size
 
 ### vuln_02.c
-This program reads a file of any name provided as an argument. The vulnerability is in the fread function where it tries to read more bytes than the buffer size.
+This program is opens a file with the name evil_file. No printf function is called prior to the execution of fread.
 
 Inputs needed: name of file and value of maximum payload size
 
 ### vuln_03.c
-This program is similar to vuln_02.c except the file it opens is fixed with the name evil_file. No printf function is called prior to the execution of fread.
+This program is similar to vuln_02.c except that file of any name can provided as an argument. The vulnerability is in the fread function where it tries to read more bytes than the buffer size.
 
 Inputs needed: name of file and value of maximum payload size
+
 
 ### Sample of Expected Output
 Below is a sample of the successful exploitation. All three exploits will produce a similar shell. The libc address will always be different due to ASLR.

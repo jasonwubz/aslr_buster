@@ -6,8 +6,27 @@ import re
 from bin_handler import Bin_handler
 
 from generate_random_payload import generic_payload
-from generate_random_payload import Generic_payload_file_handler
+from generate_random_payload import Generic_payload_handler
 from bin_handler import get_filename_strings
+
+
+def find_segfault_address_valgrind():
+    """Expects content inside a file called
+    _valgrind. This function will open the file to
+    look for segfault
+    """
+    address = ''
+    with open("_valgrind", mode='rb') as f:
+        full_msg = f.read()
+        print("Length of valgrind file:", len(full_msg))
+        regex = r"Address\s0x([a-f0-9A-F]{8,16})\sis\snot"
+        matches = re.finditer(regex, full_msg.decode('utf-8'), re.MULTILINE)
+
+        for matchNum, match in enumerate(matches, start=1):
+            address = match.group(1)
+            break
+
+    return address
 
 
 def find_segfault_address(test_str, arch=32):
@@ -36,7 +55,20 @@ def output_reader(proc):
 def probe_program(filename, arch=32, argument=''):
     offset = 0
     print("Argument:", argument)
-    proc = subprocess.Popen([f'./{filename}', f'{argument}'],
+    print("Arch:", arch)
+
+    arguments_to_call = []
+    if arch == 64:
+        arguments_to_call.append("valgrind")
+        arguments_to_call.append('-q')
+        arguments_to_call.append('--log-file=_valgrind')
+        arguments_to_call.append(f'./{filename}')
+        arguments_to_call.append(argument)
+    else:
+        arguments_to_call.append(f'./{filename}')
+        arguments_to_call.append(argument)
+
+    proc = subprocess.Popen(arguments_to_call,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT)
 
@@ -46,19 +78,26 @@ def probe_program(filename, arch=32, argument=''):
     has_segfault = False
 
     try:
-        time.sleep(0.2)
+        time.sleep(1)
     finally:
         proc.terminate()
         try:
             proc.wait(timeout=0.2)
-            # we want to parse this info here
 
+            # we want to parse this info here
             if proc.returncode == -signal.SIGSEGV:
                 has_segfault = True
-                dmesg_output = subprocess.check_output('dmesg | tail -n 2',
-                                                       shell=True)
-                segfault_address = find_segfault_address(str(dmesg_output),
-                                                         arch)
+
+                segfault_address = 0
+
+                if arch == 64:
+                    segfault_address = find_segfault_address_valgrind()
+                else:
+                    dmesg_output = subprocess.check_output('dmesg | tail -n 2',
+                                                           shell=True)
+                    segfault_address = find_segfault_address(str(dmesg_output),
+                                                             arch)
+
                 if len(segfault_address) == 0:
                     return False, None, offset
                 return has_segfault, segfault_address, offset
@@ -66,7 +105,7 @@ def probe_program(filename, arch=32, argument=''):
                 print('process exited normally', proc.returncode)
 
         except subprocess.TimeoutExpired:
-            print('subprocess did not terminate in time')
+            print('Subprocess did not terminate in time')
     t.join()
 
     return has_segfault, None, offset
@@ -80,14 +119,15 @@ def find_segfault(filename,
 
     print("Generating generic payload...")
     gen_payload = generic_payload(max_payload_size)
+    gp_handler = None
 
     if probe_mode == 4:
         start_payload_name = '_generic_payload'
 
-    if probe_mode == 2 or probe_mode == 3:
-        gp_handler = Generic_payload_file_handler(gen_payload,
-                                                  filename,
-                                                  start_payload_name)
+    if probe_mode == 2 or probe_mode == 3 or probe_mode == 4:
+        gp_handler = Generic_payload_handler(gen_payload,
+                                             filename,
+                                             start_payload_name)
 
     argument = ''
     if probe_mode == 1 or probe_mode == 3:
@@ -98,16 +138,9 @@ def find_segfault(filename,
     print("Begin probing for segfault...")
 
     if probe_mode == 4:
-        # get list of possible strings to test
-        print("Using automatic mode")
-        gp_handler = Generic_payload_file_handler(gen_payload,
-                                                  filename,
-                                                  start_payload_name)
-
-        # TODO: limit bruteforce to only strings found in .rodata for now
-        # can be improved in future
+        # TODO: try sections other than .rodata
         b_handler = Bin_handler(filename)
-        b_results = b_handler.search_binary_section(filename, '.rodata')
+        b_results = b_handler.search_section(filename, '.rodata')
 
         found_rodata, rodata_address, rodata_start, rodata_end = b_results
 
@@ -115,33 +148,33 @@ def find_segfault(filename,
         rodata_start_int = int(rodata_start, 16)
         rodata_end_int = rodata_start_int + int(rodata_end, 16)
 
-        test_strings = get_filename_strings(filename,
-                                            rodata_start_int,
-                                            rodata_end_int,
-                                            1)
+        str_offsets = get_filename_strings(filename,
+                                           rodata_start_int,
+                                           rodata_end_int,
+                                           1)
 
         # recalcuate strings address
-        new_test_strings = {}
-        for key in test_strings:
-            new_address = rodata_address_int + key
-            new_test_strings[new_address] = test_strings[key]
+        str_addresses = {}
+        for offset_as_key in str_offsets:
+            full_address = rodata_address_int + offset_as_key
+            str_addresses[full_address] = str_offsets[offset_as_key]
 
-        effective_address_of_string = ''
-        for key in new_test_strings:
-            temp_name = new_test_strings[key]
+        eff_address_of_string = ''
+        for t_address in str_addresses:
+            t_string = str_addresses[t_address]
             print("----------------------------------")
-            print("Trying string as the name of payload ->", temp_name)
-            print("String address is ->", hex(key))
-            gp_handler.rename_payload_file(temp_name)
+            print("Trying string as the name of payload ->", t_string)
+            print("String address is ->", hex(t_address))
+            gp_handler.rename_payload_file(t_string)
             time.sleep(0.5)
             has_segfault, address, offset = probe_program(filename,
                                                           arch,
-                                                          temp_name)
+                                                          t_string)
             if has_segfault is True:
-                effective_address_of_string = key
+                eff_address_of_string = t_address
                 # decode hex and reverse for correct endianness
-                address_str = bytearray.fromhex(address).decode()[::-1]
-                offset = gen_payload.find(address_str)
+                t_address_str = bytearray.fromhex(address).decode()[::-1]
+                offset = gen_payload.find(t_address_str)
                 break
             else:
                 print("Did not find segfault")
@@ -151,7 +184,7 @@ def find_segfault(filename,
                 address,
                 offset,
                 gp_handler.current_file,
-                effective_address_of_string)
+                eff_address_of_string)
     else:
         has_segfault, address, offset = probe_program(filename,
                                                       arch,

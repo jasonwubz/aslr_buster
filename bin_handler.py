@@ -102,22 +102,30 @@ class Bin_handler:
         return found, found_address, found_got_address
 
     def get_ax_sections(self, filename):
-        """Searches the binary file for AX sections (executable sections)
+        """Searches the binary file for AX sections (executable sections).
+        Will return a dictionary of sections with AX flag
         """
         sections = {}
 
         command_str = f"readelf -S -W {filename}"
-        output = subprocess.check_output(command_str, shell=True)
-        regex = r"(\.[\w\-_.]+)\s+\w+\s+([a-f0-9A-F]{8,16})" \
-                r"\s([a-f0-9A-F]+)\s([a-f0-9A-F]+)\s\d+\s+(\w?X\w?)"
-        matches = re.finditer(regex, str(output), re.MULTILINE)
 
-        for matchNum, match in enumerate(matches, start=1):
-            section_name = match.group(1)
-            found_address = match.group(2)
-            found_offset = match.group(3)
-            found_size = match.group(4)
-            sections[section_name] = (found_address, found_offset, found_size)
+        try:
+            output = subprocess.check_output(command_str, shell=True)
+            regex = r"(\.[\w\-_.]+)\s+\w+\s+([a-f0-9A-F]{8,16})" \
+                    r"\s([a-f0-9A-F]+)\s([a-f0-9A-F]+)\s\d+\s+(\w?X\w?)"
+            matches = re.finditer(regex, str(output), re.MULTILINE)
+
+            for matchNum, match in enumerate(matches, start=1):
+                section_name = match.group(1)
+                found_address = match.group(2)
+                found_offset = match.group(3)
+                found_size = match.group(4)
+                sections[section_name] = (found_address,
+                                          found_offset,
+                                          found_size)
+        except subprocess.CalledProcessError:
+            print("Unable to find section in file")
+
         return sections
 
     def search_binary_section(self, filename, section_name):
@@ -168,3 +176,73 @@ class Bin_handler:
         except subprocess.CalledProcessError:
             print("Unable to check architect")
         return is_elf
+
+
+def get_raw_strings(filename,
+                    min=4,
+                    start_offset=0,
+                    end_offset=0):
+    """reference:
+    https://stackoverflow.com/questions/17195924/python-equivalent-of-unix-strings-utility
+
+    Get all possible strings from the binary file
+    """
+    with open(filename, mode='rb') as f:
+        temp_str = f.read()
+        if start_offset > 0 and end_offset > start_offset:
+            temp_str = temp_str[start_offset:end_offset]
+        result = ""
+        last_idx = 0
+        for i in range(len(temp_str)):
+            last_idx = i
+            if chr(temp_str[i]) in string.printable:
+                result += chr(temp_str[i])
+                continue
+            if len(result) >= min:
+                hex_char = temp_str[i:i+1].hex()
+                if hex_char != "00":
+                    result = ""
+                    continue
+                yield result, last_idx - len(result)
+            result = ""
+        if len(result) >= min:  # catch result at EOF
+            yield result, last_idx - len(result)
+
+
+def search_string(filename,
+                  search_string,
+                  start_offset=0,
+                  end_offset=0,
+                  minlen=4):
+
+    """Search for a string in the binary
+    and return its offset
+    """
+    try:
+        for s, str_offset in get_raw_strings(filename,
+                                             minlen,
+                                             start_offset,
+                                             end_offset):
+            if s == search_string:
+                return str_offset
+    except IOError:
+        print('Error checking binary for strings!')
+    return ''
+
+
+def get_filename_strings(filename, start_offset=0, end_offset=0, minlen=4):
+    results = {}
+    try:
+        filename_regex = re.compile('^[\\w\\-. ]+$')
+        for s, str_offset in get_raw_strings(filename,
+                                             minlen,
+                                             start_offset,
+                                             end_offset):
+            matches = re.finditer(filename_regex, s)
+            for matchNum, match in enumerate(matches, start=1):
+                i_filename = match.group()
+                results[str_offset] = i_filename
+    except IOError:
+        print('Error checking binary for strings!')
+
+    return results

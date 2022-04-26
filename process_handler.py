@@ -1,6 +1,3 @@
-# reference:
-# https://eli.thegreenplace.net/2017/interacting-with-a-long-running-child-process-in-python/
-
 import sys
 import subprocess
 import time
@@ -21,6 +18,21 @@ PTY = PTY()
 
 
 class Process_handler:
+    """reference:
+    https://eli.thegreenplace.net/2017/interacting-with-a-long-running-child-process-in-python/
+
+    This class is used to handle the vulnerable program execution.
+    Below is a sample use of a program called system. Assuming
+    the program internally calls 'system("/bin/sh")
+
+    proc = Process_handler("system")
+    proc.process()
+    print(proc.recvuntil(delims=b'ello', timeout=5))
+    print(proc.recvline())
+    print("going interactive")
+    proc.interactive()
+
+    """
     PTY = PTY
 
     def __init__(self, program_name):
@@ -138,12 +150,3 @@ class Process_handler:
             except subprocess.TimeoutExpired:
                 print('Process ended')
         t.join(timeout=0.1)
-
-
-if __name__ == '__main__':
-    proc = Process_handler("system")
-    proc.process()
-    print(proc.recvuntil(delims=b'ello', timeout=5))
-    print(proc.recvline())
-    print("going interactive")
-    proc.interactive()

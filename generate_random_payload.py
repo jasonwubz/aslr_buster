@@ -3,28 +3,29 @@ from os import path
 
 
 class Fifo_handler:
-    def __init__(self, filename, maxsize):
+    def __init__(self, filename):
         self.filename = filename
         self.fhandle = False
-        self.maxsize = int(maxsize)
         self.open()
 
-    def create_new(self):
+    def unlink(self):
         try:
-            self.fhandle.close()
             os.unlink(self.filename)
         except OSError:
             pass
-        except IOError:
-            pass
-        os.mkfifo(self.filename)
-        self.open()
 
-    def open(self):
+    def create_new(self):
+        created = False
         try:
-            print("Opening", self.filename)
-            self.fhandle = open(f'./{self.filename}', 'ab', 0)
+            os.mkfifo(self.filename)
+            created = True
+        except OSError:
+            pass
+        return created
 
+    def open(self, open_mode='wb'):
+        try:
+            self.fhandle = open(f'./{self.filename}', open_mode, 0)
             return True
         except OSError:
             print("Error opening file")
@@ -35,6 +36,9 @@ class Fifo_handler:
 
     def write(self, content):
         self.fhandle.write(content)
+
+    def close(self):
+        self.fhandle.close()
 
 
 class Generic_payload_file_handler:
@@ -103,10 +107,3 @@ def generic_payload(size=600):
                 if c1 > 90:
                     break
     return return_str
-
-
-if __name__ == '__main__':
-    mystr = bytearray(b"A" * 20)
-    myfifo = Fifo_handler("benign_payload", len(mystr))
-    myfifo.create_new()
-    myfifo.open_write(mystr)

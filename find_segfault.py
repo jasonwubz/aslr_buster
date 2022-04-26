@@ -7,7 +7,7 @@ from bin_handler import Bin_handler
 
 from generate_random_payload import generic_payload
 from generate_random_payload import Generic_payload_file_handler
-from string_handler import generate_strings
+from bin_handler import get_filename_strings
 
 
 def find_segfault_address(test_str, arch=32):
@@ -115,10 +115,10 @@ def find_segfault(filename,
         rodata_start_int = int(rodata_start, 16)
         rodata_end_int = rodata_start_int + int(rodata_end, 16)
 
-        test_strings = generate_strings(filename,
-                                        rodata_start_int,
-                                        rodata_end_int,
-                                        1)
+        test_strings = get_filename_strings(filename,
+                                            rodata_start_int,
+                                            rodata_end_int,
+                                            1)
 
         # recalcuate strings address
         new_test_strings = {}

@@ -1,5 +1,4 @@
 from capstone import CS_OPT_SYNTAX_INTEL, Cs, CS_ARCH_X86, CS_MODE_32
-from bin_handler import Bin_handler
 import re
 
 
@@ -37,26 +36,3 @@ class Gadget_finder:
             gadget_found = True
 
         return gadget_found, gadget_address
-
-
-if __name__ == '__main__':
-    program_name = 'vuln_01'
-    b_handler = Bin_handler(program_name)
-    ax_sections = b_handler.get_ax_sections(program_name)
-    gfinder = Gadget_finder(program_name)
-    found_gadget = False
-    gadget_address = ''
-    for esection in ax_sections:
-        print("Checking executable section", esection)
-        esec_add_int = int(ax_sections[esection][0], 16)
-        esec_start_int = int(ax_sections[esection][1], 16)
-        esec_end_int = esec_start_int + int(ax_sections[esection][2], 16)
-        find_regex = r"0x([a-f0-9]+):\spop\se\w?x;\s?(0x[a-f0-9]+):\s?ret\s?;"
-        found_gadget, gadget_address = gfinder.find(find_regex,
-                                                    esec_start_int,
-                                                    esec_end_int)
-        if found_gadget:
-            print("Found gadget in section",
-                  esection,
-                  "at offset",
-                  gadget_address)

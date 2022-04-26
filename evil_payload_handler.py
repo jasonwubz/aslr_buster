@@ -27,3 +27,9 @@ class Evil_payload_handler:
         file = open(current_file, "wb", 0)
         file.write(self.content)
         file.close()
+
+
+def has_null_bytes(hexstr):
+    if "00" in hexstr:
+        return True
+    return False

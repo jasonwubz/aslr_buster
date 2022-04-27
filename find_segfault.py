@@ -54,8 +54,8 @@ def output_reader(proc):
 
 def probe_program(filename, arch=32, argument=''):
     offset = 0
-    print("Argument:", argument)
-    print("Arch:", arch)
+    # print("Argument:", argument)
+    # print("Arch:", arch)
 
     arguments_to_call = []
     if arch == 64:
@@ -78,7 +78,10 @@ def probe_program(filename, arch=32, argument=''):
     has_segfault = False
 
     try:
-        time.sleep(1)
+        if arch == 64:
+            time.sleep(1)
+        else:
+            time.sleep(0.5)
     finally:
         proc.terminate()
         try:
@@ -117,7 +120,7 @@ def find_segfault(filename,
                   max_payload_size=0,
                   start_payload_name=''):
 
-    print("Generating generic payload...")
+    # print("Generated generic payload")
     gen_payload = generic_payload(max_payload_size)
     gp_handler = None
 
@@ -133,8 +136,9 @@ def find_segfault(filename,
     if probe_mode == 1 or probe_mode == 3:
         argument = gen_payload
 
-    print("Payload is :", gen_payload)
+    print("Generic payload:", gen_payload)
 
+    print("")
     print("Begin probing for segfault...")
 
     if probe_mode == 4:
@@ -178,7 +182,8 @@ def find_segfault(filename,
                 break
             else:
                 print("Did not find segfault")
-        print("Name of payload file name that worked", gp_handler.current_file)
+        # print("Name of payload file name that worked",
+        #       gp_handler.current_file)
         print("----------------------------------")
         return (has_segfault,
                 address,

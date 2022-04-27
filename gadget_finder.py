@@ -41,6 +41,7 @@ class Gadget_finder:
             gadget_address = match.group(1)
             gadget_found = True
             print("Match found:", match.group())
+
             break
 
         return gadget_found, gadget_address

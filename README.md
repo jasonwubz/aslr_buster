@@ -1,3 +1,5 @@
+<img src="media/aslr_buster.png" width=50%>
+
 # ASLR Buster
 ASLR is used by the Linux Kernel to randomize memory space which makes the attacks on processes more difficult. To get around ASLR, an attacker has to identify an information leak vulnerability that exposes memory locations, or they can probe the memory until they find the correct area where another programme is running, and then adapt their code to target that memory address space. 
 

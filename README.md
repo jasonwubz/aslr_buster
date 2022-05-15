@@ -28,12 +28,12 @@ $ sysctl -a --pattern randomize_va_space
 ### 3. Install Dependencies:
 - click: [Link](https://pypi.org/project/click/)
 ~~~
-pip3 install click
+$ pip3 install click
 ~~~
 
 - capstone: [Link](https://www.capstone-engine.org/documentation.html)
 ~~~
-pip3 install capstone
+$ pip3 install capstone
 ~~~
 
 OR use the makefile:
@@ -53,8 +53,8 @@ $ cd test
 Install libc 32-bit version
 
 ~~~
-sudo apt-get update
-sudo apt-get install gcc-multilib
+$ sudo apt-get update
+$ sudo apt-get install gcc-multilib
 ~~~
 
 Compile the source code:
@@ -66,7 +66,7 @@ $ gcc -m32 -z noexecstack -fno-stack-protector -no-pie -o vuln_01 vuln_01.c
 Verify that libc address is always different:
 
 ~~~
-ldd vuln_01 | grep libc
+$ ldd vuln_01 | grep libc
 ~~~
 
 ### 2. Start the ASLR Buster Script

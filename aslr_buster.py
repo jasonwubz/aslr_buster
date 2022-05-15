@@ -5,11 +5,11 @@ import click
 from find_segfault import find_segfault
 from bin_handler import Bin_handler
 from bin_handler import search_string
-from evil_payload_handler import Evil_payload_handler
-from evil_payload_handler import has_null_bytes
+from payload_handler import Evil_payload_handler
+from payload_handler import Fifo_handler
+from payload_handler import has_null_bytes
 from gadget_finder import Gadget_finder
 from process_handler import Process_handler
-from generate_random_payload import Fifo_handler
 
 
 def hex_to_int(hex_str=''):
@@ -378,7 +378,10 @@ else:
                         hex_to_int(puts_offset)
 
 print("Calculation of libc address = leaked address of puts - offset of puts")
-print("Calculation of libc address =", hex(leaked_bytes_int)[2:], "-", puts_offset)
+print("Calculation of libc address =",
+      hex(leaked_bytes_int)[2:],
+      "-",
+      puts_offset)
 
 print("Calculated libc address:", hex(libc_base_address))
 

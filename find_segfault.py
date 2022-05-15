@@ -5,8 +5,8 @@ import signal
 import re
 from bin_handler import Bin_handler
 
-from generate_random_payload import generic_payload
-from generate_random_payload import Generic_payload_handler
+from payload_handler import generic_payload
+from payload_handler import Generic_payload_handler
 from bin_handler import get_filename_strings
 
 

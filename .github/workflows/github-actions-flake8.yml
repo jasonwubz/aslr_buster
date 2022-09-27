@@ -2,10 +2,10 @@ name: GitHub Actions Flake8
 run-name: ${{ github.actor }} is testing out Github Actions 🤑
 on:
   push:
-  paths:
-    - experimental/*
-    - bin_handler.py
-    - .github/workflows/github-actions-flake8.yml
+    paths:
+      - experimental/*
+      - bin_handler.py
+      - .github/workflows/github-actions-flake8.yml
 jobs:
   Explore-GitHub-Actions:
     runs-on: ubuntu-latest

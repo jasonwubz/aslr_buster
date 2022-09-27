@@ -216,7 +216,6 @@ def get_raw_strings(filename,
         if len(result) >= min:  # catch result at EOF
             yield result, last_idx - len(result)
 
-
 def search_string(filename,
                   search_string,
                   start_offset=0,

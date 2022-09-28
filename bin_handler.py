@@ -236,7 +236,6 @@ def search_string(filename,
         print('Error checking binary for strings!')
     return ''
 
-
 def get_filename_strings(filename, start_offset=0, end_offset=0, minlen=4):
     """Find strings that can be used as filenames.
     The returned result is a dictionary where the

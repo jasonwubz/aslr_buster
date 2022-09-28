@@ -216,6 +216,7 @@ def get_raw_strings(filename,
         if len(result) >= min:  # catch result at EOF
             yield result, last_idx - len(result)
 
+
 def search_string(filename,
                   search_string,
                   start_offset=0,
@@ -235,6 +236,7 @@ def search_string(filename,
     except IOError:
         print('Error checking binary for strings!')
     return ''
+
 
 def get_filename_strings(filename, start_offset=0, end_offset=0, minlen=4):
     """Find strings that can be used as filenames.
